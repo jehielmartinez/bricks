@@ -11,14 +11,14 @@ game_over = False
 paddle = pygame.image.load("./images/paddle.png").convert_alpha()
 paddle_rect = paddle.get_rect()
 paddle_rect[1] = screen.get_height() - paddle_rect[3]
+paddle_rect[0] = screen.get_width() // 2 - paddle_rect[2] // 2
 
 # Ball
 ball = pygame.image.load("./images/football.png").convert_alpha()
 ball_rect = ball.get_rect()
-ball_start = (screen.get_width() // 2, screen.get_height() // 1)
-ball_speed = (-0.3, -0.3)
+ball_start = (screen.get_width() // 2, screen.get_height() // 2)
+ball_speed = (0.3, 0.3)
 ball_served = False
-sx, sy = ball_speed
 ball_rect.topleft = ball_start
 
 # Bricks
@@ -37,9 +37,17 @@ for y in range(brick_rows):
     for x in range(brick_cols):
         brickX = x * (brick_rect[2] + bricks_gap) + side_gap
         bricks.append((brickX, brickY))
+
+# Game State
+game_state = {
+    "ball_served": False,
+    "ball_rect": ball_rect,
+    "dt": 0,
+    "paddle_rect": paddle_rect,
+    "sx": ball_speed[0],
+    "sy": ball_speed[1],
+}
        
-
-
 def handle_quit():
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
@@ -51,61 +59,79 @@ def draw_bricks():
         screen.blit(brick, b)
 
 def draw_paddle():
-    screen.blit(paddle, paddle_rect)
+    screen.blit(paddle, game_state["paddle_rect"])
 
-def move_paddle(dt):
-    keys = pygame.key.get_pressed()
-    if keys[pygame.K_LEFT]:
-        paddle_rect[0] -= 5 * dt
-    if keys[pygame.K_RIGHT]:
-        paddle_rect[0] += 5 * dt
-    if paddle_rect[0] < 0:
-        paddle_rect[0] = 0
-    if paddle_rect[0] > screen.get_width() - paddle_rect[2]:
-        paddle_rect[0] = screen.get_width() - paddle_rect[2]
+def move_paddle():
+    if game_state["ball_served"]:
+      keys = pygame.key.get_pressed()
+      if keys[pygame.K_LEFT]:
+          game_state["paddle_rect"][0] -= 1 * game_state["dt"]
+      if keys[pygame.K_RIGHT]:
+          game_state["paddle_rect"][0] += 1 * game_state["dt"]
+      if game_state["paddle_rect"][0] < 0:
+          game_state["paddle_rect"][0] = 0
+      if game_state["paddle_rect"][0] > screen.get_width() - game_state["paddle_rect"][2]:
+          game_state["paddle_rect"][0] = screen.get_width() - game_state["paddle_rect"][2]
 
 def draw_ball():
-    screen.blit(ball, ball_rect)
+    screen.blit(ball, game_state["ball_rect"])
 
-def move_ball(dt, ball_served, sx, sy):
-    if ball_served:
-        ball_rect[0] += sx * dt
-        ball_rect[1] += sy * dt
+def move_ball():
+    if game_state["ball_served"]:
+        game_state["ball_rect"][0] += game_state["sx"] * game_state["dt"]
+        game_state["ball_rect"][1] += game_state["sy"] * game_state["dt"]
     # if bounce left
-    if ball_rect[0] <= 0:
-        ball_rect[0] = 0
-        sx *= -1
+    if game_state["ball_rect"][0] <= 0:
+        game_state["ball_rect"][0] = 0
+        game_state["sx"] *= -1
     # if bounce right
-    if ball_rect[0] >= screen.get_width() - ball_rect[2]:
-        ball_rect[0] = screen.get_width() - ball_rect[2]
-        sx *= -1
+    if game_state["ball_rect"][0] >= screen.get_width() - game_state["ball_rect"][2]:
+        game_state["ball_rect"][0] = screen.get_width() - game_state["ball_rect"][2]
+        game_state["sx"] *= -1
     # if bounce top
-    if ball_rect[1] <= 0:
-        ball_rect[1] = 0
-        sy *= -1
+    if game_state["ball_rect"][1] <= 0:
+        game_state["ball_rect"][1] = 0
+        game_state["sy"] *= -1
     # if bounce bottom
-    if ball_rect[1] >= screen.get_height() - ball_rect[3]:
-        ball_rect[1] = screen.get_height() - ball_rect[3]
-        sy *= -1
-    return sx, sy
+    if game_state["ball_rect"][1] >= screen.get_height() - game_state["ball_rect"][3]:
+        # set initial state
+        game_state["ball_served"] = False
+        game_state["ball_rect"] = ball_rect
+        game_state["sx"] = ball_speed[0]
+        game_state["sy"] = ball_speed[1]
+        game_state["paddle_rect"] = paddle_rect
+        game_state["ball_rect"].topleft = ball_start
+    # if bounce paddle
+    if ball_rect.colliderect(paddle_rect):
+        game_state["ball_rect"][1] = paddle_rect[1] - game_state["ball_rect"][3]
+        game_state["sy"] *= -1
 
-def handle_serve(current_serve):
-    if current_serve:
-        return True
+def handle_serve():
+    if game_state["ball_served"]:
+        game_state["ball_served"] = True
+        return
     keys = pygame.key.get_pressed()
     if keys[pygame.K_SPACE]:
-        return True
-    return False
+        game_state["ball_served"] = True
+        return
+    game_state["ball_served"] = False
+
+def increase_dificulty(delta = 0.1):
+    if game_state["sy"] > 0:
+        game_state["sy"] += delta
+    else:
+        game_state["sy"] -= delta
 
 while not game_over:
-  dt = clock.tick(50)
+  game_state["dt"] = clock.tick(50)
   screen.fill((0, 0, 0))
+  handle_serve()
   draw_bricks()
   draw_ball()
   draw_paddle()
-  move_paddle(dt)
-  sx, sy = move_ball(dt, ball_served, sx, sy)
-  ball_served = handle_serve(ball_served)
+  increase_dificulty(0.0001)
+  move_paddle()
+  move_ball()
   game_over = handle_quit()
   pygame.display.update()
 pygame.quit()

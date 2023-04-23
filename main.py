@@ -77,6 +77,7 @@ def draw_ball():
     screen.blit(ball, game_state["ball_rect"])
 
 def move_ball():
+    keys = pygame.key.get_pressed()
     if game_state["ball_served"]:
         game_state["ball_rect"][0] += game_state["sx"] * game_state["dt"]
         game_state["ball_rect"][1] += game_state["sy"] * game_state["dt"]
@@ -105,6 +106,17 @@ def move_ball():
     if ball_rect.colliderect(paddle_rect):
         game_state["ball_rect"][1] = paddle_rect[1] - game_state["ball_rect"][3]
         game_state["sy"] *= -1
+        if pygame.key.get_pressed()[pygame.K_LEFT]:
+            game_state["sx"] -= 0.01
+        if pygame.key.get_pressed()[pygame.K_RIGHT]:
+            game_state["sx"] += 0.01
+        increase_dificulty(0.0001)
+    # if bounce brick
+    for b in bricks:
+        if game_state["ball_rect"].colliderect(pygame.Rect(b[0], b[1], brick_rect[2], brick_rect[3])):
+            bricks.remove(b)
+            game_state["sy"] *= -1
+            break
 
 def handle_serve():
     if game_state["ball_served"]:
@@ -129,7 +141,6 @@ while not game_over:
   draw_bricks()
   draw_ball()
   draw_paddle()
-  increase_dificulty(0.0001)
   move_paddle()
   move_ball()
   game_over = handle_quit()
